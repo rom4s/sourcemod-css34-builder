@@ -424,12 +424,12 @@ try:
 except IOError as e:
     raise Exception('[Init] Error reading file: <sourcemod_dir>/product.version')
 
-sm_commit = int(subprocess.check_output('git rev-list --count HEAD', shell=True).strip())
-sm_revision = subprocess.check_output('git rev-parse HEAD', shell=True).strip()
+sm_commit = int(subprocess.check_output('git rev-list --count HEAD', shell=True).strip().decode())
+sm_revision = subprocess.check_output('git rev-parse HEAD', shell=True).strip().decode()
 
 os.chdir(os.path.join(sourcemod_dir, '..'))
 try:
-    build_commit = subprocess.check_output('git rev-parse HEAD', shell=True).strip()
+    build_commit = subprocess.check_output('git rev-parse HEAD', shell=True).strip().decode()
 except:
     build_commit = 'master'
 os.chdir(sourcemod_dir)
