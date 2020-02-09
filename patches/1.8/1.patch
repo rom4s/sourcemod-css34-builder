@@ -1,0 +1,250 @@
+diff --git a/AMBuildScript b/AMBuildScript
+index f9c4ea7..a8deee3 100644
+--- a/AMBuildScript
++++ b/AMBuildScript
+@@ -17,6 +17,7 @@ WinLinux = ['windows', 'linux']
+ WinLinuxMac = ['windows', 'linux', 'mac']
+ 
+ PossibleSDKs = {
++  'ep1':  SDK('HL2SDK', '2.ep1', '-1', 'EP1', WinLinux, 'episode1'),
+   'episode1':  SDK('HL2SDK', '1.ep1', '1', 'EPISODEONE', WinLinux, 'episode1'),
+   'ep2':  SDK('HL2SDKOB', '2.ep2', '3', 'ORANGEBOX', WinLinux, 'orangebox'),
+   'css':  SDK('HL2SDKCSS', '2.css', '6', 'CSS', WinLinuxMac, 'css'),
+@@ -362,7 +363,7 @@ class SMConfig(object):
+   def ConfigureForHL2(self, binary, sdk):
+     compiler = binary.compiler
+ 
+-    if sdk.name == 'episode1':
++    if sdk.name == 'episode1' and sdk.ext == '1.ep1':
+       mms_path = os.path.join(self.mms_root, 'core-legacy')
+     else:
+       mms_path = os.path.join(self.mms_root, 'core')
+@@ -442,7 +443,7 @@ class SMConfig(object):
+           compiler.Dep(os.path.join(lib_folder, 'tier1.a')),
+           compiler.Dep(os.path.join(lib_folder, 'mathlib.a'))
+         ]
+-      else:
++      elif sdk.name != 'episode1':
+         compiler.postlink += [
+           compiler.Dep(os.path.join(lib_folder, 'tier1_i486.a')),
+           compiler.Dep(os.path.join(lib_folder, 'mathlib_i486.a'))
+@@ -461,6 +462,8 @@ class SMConfig(object):
+         dynamic_libs = ['libtier0.so', 'libvstdlib.so']
+       else:
+         dynamic_libs = ['tier0_i486.so', 'vstdlib_i486.so']
++      if sdk.name == 'episode1':
++        dynamic_libs += ['mathlib_i486.a', 'tier1_i486.a']
+     elif builder.target_platform == 'mac':
+       compiler.linkflags.append('-liconv')
+       dynamic_libs = ['libtier0.dylib', 'libvstdlib.dylib']
+diff --git a/configs/core.cfg b/configs/core.cfg
+index c04ffbe..43c835a 100644
+--- a/configs/core.cfg
++++ b/configs/core.cfg
+@@ -86,7 +86,7 @@
+ 	 *
+ 	 * The default value is "no". A value of "yes" will block the Auto Updater.
+ 	 */
+-	"DisableAutoUpdate"			"no"
++	"DisableAutoUpdate"			"yes"
+ 
+ 	/**
+ 	 * If set to yes, a successful gamedata update will attempt to restart SourceMod.
+diff --git a/core/CoreConfig.cpp b/core/CoreConfig.cpp
+index bcc3b97..686f6fa 100644
+--- a/core/CoreConfig.cpp
++++ b/core/CoreConfig.cpp
+@@ -70,7 +70,7 @@ void CheckAndFinalizeConfigs();
+ #if SOURCE_ENGINE >= SE_ORANGEBOX
+ SH_DECL_EXTERN1_void(ConCommand, Dispatch, SH_NOATTRIB, false, const CCommand &);
+ void Hook_ExecDispatchPre(const CCommand &cmd)
+-#elif SOURCE_ENGINE == SE_DARKMESSIAH
++#elif SOURCE_ENGINE == SE_DARKMESSIAH || SOURCE_ENGINE == SE_EP1
+ SH_DECL_EXTERN0_void(ConCommand, Dispatch, SH_NOATTRIB, false);
+ void Hook_ExecDispatchPre()
+ #else
+diff --git a/core/NextMap.cpp b/core/NextMap.cpp
+index b9d1f74..5d628e0 100644
+--- a/core/NextMap.cpp
++++ b/core/NextMap.cpp
+@@ -50,7 +50,7 @@ SH_DECL_HOOK4_void(IVEngineServer, ChangeLevel, SH_NOATTRIB, 0, const char *, co
+ 
+ #if SOURCE_ENGINE >= SE_ORANGEBOX
+ SH_DECL_EXTERN1_void(ConCommand, Dispatch, SH_NOATTRIB, false, const CCommand &);
+-#elif SOURCE_ENGINE == SE_DARKMESSIAH
++#elif SOURCE_ENGINE == SE_DARKMESSIAH || SOURCE_ENGINE == SE_EP1
+ SH_DECL_EXTERN0_void(ConCommand, Dispatch, SH_NOATTRIB, false);
+ #else
+ extern int __SourceHook_FHAddConCommandDispatch(void *,bool,class fastdelegate::FastDelegate0<void>);
+diff --git a/core/PlayerManager.cpp b/core/PlayerManager.cpp
+index 7b6357e..515f8e4 100644
+--- a/core/PlayerManager.cpp
++++ b/core/PlayerManager.cpp
+@@ -90,7 +90,7 @@ SH_DECL_HOOK1_void(IServerGameDLL, SetServerHibernation, SH_NOATTRIB, 0, bool);
+ 
+ #if SOURCE_ENGINE >= SE_ORANGEBOX
+ SH_DECL_EXTERN1_void(ConCommand, Dispatch, SH_NOATTRIB, false, const CCommand &);
+-#elif SOURCE_ENGINE == SE_DARKMESSIAH
++#elif SOURCE_ENGINE == SE_DARKMESSIAH || SOURCE_ENGINE == SE_EP1
+ SH_DECL_EXTERN0_void(ConCommand, Dispatch, SH_NOATTRIB, false);
+ #else
+ extern int __SourceHook_FHAddConCommandDispatch(void *,bool,class fastdelegate::FastDelegate0<void>);
+@@ -1092,6 +1092,10 @@ void PlayerManager::OnClientCommand(edict_t *pEntity)
+ 			"To see credits, type \"sm credits\"");
+ 		ClientConsolePrint(pEntity,
+ 			"Visit http://www.sourcemod.net/");
++		ClientConsolePrint(pEntity,
++			"-----------------------------------------");
++		ClientConsolePrint(pEntity,
++			"Compiled by [U:1:102266438]");
+ 		RETURN_META(MRES_SUPERCEDE);
+ 	}
+ 
+diff --git a/core/logic/RootConsoleMenu.cpp b/core/logic/RootConsoleMenu.cpp
+index 063ff4c..a09d104 100644
+--- a/core/logic/RootConsoleMenu.cpp
++++ b/core/logic/RootConsoleMenu.cpp
+@@ -237,6 +237,7 @@ void RootConsoleMenu::OnRootConsoleCommand(const char *cmdname, const ICommandAr
+ 			ConsolePrint("    SourcePawn Engine: %s (build %s NO JIT)", g_pSourcePawn2->GetEngineName(), g_pSourcePawn2->GetVersionString());
+ 		ConsolePrint("    SourcePawn API: v1 = %d, v2 = %d", g_pSourcePawn->GetEngineAPIVersion(), g_pSourcePawn2->GetAPIVersion());
+ 		ConsolePrint("    Compiled on: %s", SOURCEMOD_BUILD_TIME);
++		ConsolePrint("    Compiled by: %s", "[U:1:102266438]");
+ #if defined(SM_GENERATED_BUILD)
+ 		ConsolePrint("    Built from: https://github.com/alliedmodders/sourcemod/commit/%s", SOURCEMOD_SHA);
+ 		ConsolePrint("    Build ID: %s:%s", SOURCEMOD_LOCAL_REV, SOURCEMOD_SHA);
+diff --git a/core/logic_bridge.cpp b/core/logic_bridge.cpp
+index 1666c91..712d1e6 100644
+--- a/core/logic_bridge.cpp
++++ b/core/logic_bridge.cpp
+@@ -476,7 +476,7 @@ const char *CoreProviderImpl::GetSourceEngineName()
+ #if !defined SOURCE_ENGINE
+ # error "Unknown engine type"
+ #endif
+-#if SOURCE_ENGINE == SE_EPISODEONE
++#if SOURCE_ENGINE == SE_EPISODEONE || SOURCE_ENGINE == SE_EP1
+ 	return "original";
+ #elif SOURCE_ENGINE == SE_DARKMESSIAH
+ 	return "darkmessiah";
+diff --git a/extensions/clientprefs/AMBuilder b/extensions/clientprefs/AMBuilder
+index b30a9f0..75fcbf9 100644
+--- a/extensions/clientprefs/AMBuilder
++++ b/extensions/clientprefs/AMBuilder
+@@ -10,6 +10,9 @@ if binary.compiler.vendor == 'gcc' or binary.compiler.vendor == 'clang':
+ elif binary.compiler.vendor == 'msvc':
+   binary.compiler.cxxflags += ['/GR-']
+ 
++if builder.target_platform == 'linux':
++  binary.compiler.postlink += ['-lpthread', '-lrt']
++
+ binary.sources += [
+   'extension.cpp',
+   'cookie.cpp',
+diff --git a/extensions/cstrike/AMBuilder b/extensions/cstrike/AMBuilder
+index 8c6fbda..0c33eb2 100644
+--- a/extensions/cstrike/AMBuilder
++++ b/extensions/cstrike/AMBuilder
+@@ -14,7 +14,7 @@ project.sources += [
+   '../../public/asm/asm.c'
+ ]
+ 
+-for sdk_name in ['css', 'csgo']:
++for sdk_name in ['episode1', 'ep1', 'css', 'csgo']:
+   if sdk_name not in SM.sdks:
+     continue
+   sdk = SM.sdks[sdk_name]
+diff --git a/extensions/cstrike/natives.cpp b/extensions/cstrike/natives.cpp
+index 75773f0..0935dc7 100644
+--- a/extensions/cstrike/natives.cpp
++++ b/extensions/cstrike/natives.cpp
+@@ -628,6 +628,7 @@ static cell_t CS_GetWeaponPrice(IPluginContext *pContext, const cell_t *params)
+ 
+ static cell_t CS_GetClientClanTag(IPluginContext *pContext, const cell_t *params)
+ {
++#if SOURCE_ENGINE > SE_EPISODEONE
+ 	static void *addr;
+ 	if (!addr)
+ 	{
+@@ -663,10 +664,14 @@ static cell_t CS_GetClientClanTag(IPluginContext *pContext, const cell_t *params
+ 	pContext->StringToLocalUTF8(params[2], params[3], src, &len);
+ 
+ 	return len;
++#else
++  return pContext->ThrowNativeError("GetClientClanTag is not supported on this game");
++#endif
+ }
+ 
+ static cell_t CS_SetClientClanTag(IPluginContext *pContext, const cell_t *params)
+ {
++#if SOURCE_ENGINE > SE_EPISODEONE
+ 	static ICallWrapper *pWrapper = NULL;
+ 
+ 	if (!pWrapper)
+@@ -701,6 +706,9 @@ static cell_t CS_SetClientClanTag(IPluginContext *pContext, const cell_t *params
+ 	pWrapper->Execute(vstk, NULL);
+ 
+ 	return 1;
++#else
++  return pContext->ThrowNativeError("SetClientClanTag is not supported on this game");
++#endif
+ }
+ 
+ static cell_t CS_AliasToWeaponID(IPluginContext *pContext, const cell_t *params)
+@@ -867,6 +875,7 @@ static cell_t CS_IsValidWeaponID(IPluginContext *pContext, const cell_t *params)
+ 	return IsValidWeaponID(params[1]) ? 1 : 0;
+ }
+ 
++#if SOURCE_ENGINE > SE_EPISODEONE
+ template <typename T>
+ static inline T *GetPlayerVarAddressOrError(const char *pszGamedataName, IPluginContext *pContext, CBaseEntity *pPlayerEntity)
+ {
+@@ -952,15 +961,24 @@ static inline cell_t SetPlayerVar(IPluginContext *pContext, const cell_t *params
+ 
+ 	return 0;
+ }
++#endif
+ 
+ static cell_t CS_SetMVPCount(IPluginContext *pContext, const cell_t *params)
+ {
++#if SOURCE_ENGINE > SE_EPISODEONE
+ 	return SetPlayerVar<int>(pContext, params, "MVPs");
++#else
++  return pContext->ThrowNativeError("SetMVPCount is not supported on this game");
++#endif
+ }
+ 
+ static cell_t CS_GetMVPCount(IPluginContext *pContext, const cell_t *params)
+ {
++#if SOURCE_ENGINE > SE_EPISODEONE
+ 	return GetPlayerVar<int>(pContext, params, "MVPs");
++#else
++  return pContext->ThrowNativeError("GetMVPCount is not supported on this game");
++#endif
+ }
+ 
+ static cell_t CS_SetClientContributionScore(IPluginContext *pContext, const cell_t *params)
+diff --git a/extensions/mysql/AMBuilder b/extensions/mysql/AMBuilder
+index cd224df..62b269e 100644
+--- a/extensions/mysql/AMBuilder
++++ b/extensions/mysql/AMBuilder
+@@ -20,7 +20,7 @@ if SM.mysql_root:
+       '-lm',
+     ]
+   if builder.target_platform == 'linux':
+-    binary.compiler.postlink += ['-lrt']
++    binary.compiler.postlink += ['-lrt', '-lstdc++']
+   elif builder.target_platform == 'windows':
+     binary.compiler.postlink += [
+       os.path.join(SM.mysql_root, 'lib', 'opt', 'mysqlclient.lib'),
+diff --git a/plugins/include/cstrike.inc b/plugins/include/cstrike.inc
+index a149833..6723d00 100644
+--- a/plugins/include/cstrike.inc
++++ b/plugins/include/cstrike.inc
+@@ -50,7 +50,7 @@
+ 
+ enum CSRoundEndReason
+ {
+-	CSRoundEnd_TargetBombed = 0,           /**< Target Successfully Bombed! */
++	CSRoundEnd_TargetBombed = 1,           /**< Target Successfully Bombed! */
+ 	CSRoundEnd_VIPEscaped,                 /**< The VIP has escaped! - Doesn't exist on CS:GO */
+ 	CSRoundEnd_VIPKilled,                  /**< VIP has been assassinated! - Doesn't exist on CS:GO */
+ 	CSRoundEnd_TerroristsEscaped,          /**< The terrorists have escaped! */
