@@ -427,7 +427,7 @@ except IOError as e:
 sm_commit = int(subprocess.check_output('git rev-list --count HEAD', shell=True).strip())
 sm_revision = subprocess.check_output('git rev-parse HEAD', shell=True).strip()
 
-os.chdir(sourcemod_dir, '..')
+os.chdir(os.path.join(sourcemod_dir, '..'))
 try:
     build_commit = subprocess.check_output('git rev-parse HEAD', shell=True).strip()
 except:
