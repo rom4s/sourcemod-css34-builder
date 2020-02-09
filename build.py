@@ -221,7 +221,7 @@ def _package():
             except:
                 pass
 
-    output = 'sourcemod-{0}-git{1}-'.format(sm_version, sm_commit)
+    output = 'sourcemod-{0}-git{1}-css34-'.format(sm_version, sm_commit)
     print('Output file IS: {0}'.format(output))
 
     in_archive = ('addons', 'cfg')
