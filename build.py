@@ -51,6 +51,9 @@ def _config():
     for commit_id, commit_config in config[sm_branch].items():
         commit_id = int(commit_id)
         if sm_commit >= commit_id and commit_id > commit_selected:
+            if not os.path.isfile(os.path.join(script_dir, 'patches', sm_branch, commit_config['patch'])):
+                print('[Config] Skip config <{1}#{2}> for <{1}#{0}> (not exists patch)'.format(sm_commit, sm_branch, commit_id))
+                continue
             commit_selected = commit_id
 
     if commit_selected == 0:

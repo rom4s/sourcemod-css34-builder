@@ -1,5 +1,5 @@
 diff --git a/AMBuildScript b/AMBuildScript
-index 96717eda..6440edff 100644
+index 05cbb356..c6769435 100644
 --- a/AMBuildScript
 +++ b/AMBuildScript
 @@ -36,6 +36,7 @@ CSGO = {
@@ -10,7 +10,7 @@ index 96717eda..6440edff 100644
    'episode1':  SDK('HL2SDK', '2.ep1', '1', 'EPISODEONE', WinLinux, 'episode1'),
    'ep2':  SDK('HL2SDKOB', '2.ep2', '3', 'ORANGEBOX', WinLinux, 'orangebox'),
    'css':  SDK('HL2SDKCSS', '2.css', '6', 'CSS', WinLinuxMac, 'css'),
-@@ -463,13 +464,14 @@ class SMConfig(object):
+@@ -483,13 +484,14 @@ class SMConfig(object):
      SetArchFlags(compiler, arch, builder.target.platform)
  
      compiler.cxxincludes += [
@@ -27,7 +27,7 @@ index 96717eda..6440edff 100644
      paths = [
        ['public'],
        ['public', 'engine'],
-@@ -545,7 +547,7 @@ class SMConfig(object):
+@@ -564,7 +566,7 @@ class SMConfig(object):
            compiler.Dep(os.path.join(lib_folder, 'tier1.a')),
            compiler.Dep(os.path.join(lib_folder, 'mathlib.a'))
          ]
@@ -36,7 +36,7 @@ index 96717eda..6440edff 100644
          compiler.postlink += [
            compiler.Dep(os.path.join(lib_folder, 'tier1_i486.a')),
            compiler.Dep(os.path.join(lib_folder, 'mathlib_i486.a'))
-@@ -567,6 +569,8 @@ class SMConfig(object):
+@@ -586,6 +588,8 @@ class SMConfig(object):
          dynamic_libs = ['libtier0.so', 'libvstdlib.so']
        else:
          dynamic_libs = ['tier0_i486.so', 'vstdlib_i486.so']
@@ -113,7 +113,7 @@ index 5e426390..b3bc29d8 100644
  
  ConCommand *changeLevelCmd = NULL;
 diff --git a/core/PlayerManager.cpp b/core/PlayerManager.cpp
-index e53169d9..4878c187 100644
+index b936098b..a9a8a694 100644
 --- a/core/PlayerManager.cpp
 +++ b/core/PlayerManager.cpp
 @@ -90,7 +90,12 @@ SH_DECL_HOOK1_void(IServerGameDLL, SetServerHibernation, SH_NOATTRIB, 0, bool);
@@ -469,10 +469,10 @@ index 9e242171..bb367327 100644
  BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved)
  {
 diff --git a/plugins/include/cstrike.inc b/plugins/include/cstrike.inc
-index 185a8219..03088c81 100644
+index c4239e13..9b4f9299 100644
 --- a/plugins/include/cstrike.inc
 +++ b/plugins/include/cstrike.inc
-@@ -50,7 +50,7 @@
+@@ -52,7 +52,7 @@
  
  enum CSRoundEndReason
  {
@@ -521,7 +521,7 @@ index 9ab73f38..b18f87b1 100644
  #endif //_INCLUDE_METAMOD_WRAPPERS_H_
 Submodule sourcepawn contains modified content
 diff --git a/sourcepawn/vm/AMBuilder b/sourcepawn/vm/AMBuilder
-index 4d85a91..85d0c84 100644
+index a1fa411..8e04ad9 100644
 --- a/sourcepawn/vm/AMBuilder
 +++ b/sourcepawn/vm/AMBuilder
 @@ -111,6 +111,9 @@ dll.sources += [
@@ -534,11 +534,40 @@ index 4d85a91..85d0c84 100644
  libsourcepawn = builder.Add(dll)
  
  # Build the debug shell.
+diff --git a/tools/buildbot/Versioning b/tools/buildbot/Versioning
+index 994f052a..80da76b1 100644
+--- a/tools/buildbot/Versioning
++++ b/tools/buildbot/Versioning
+@@ -17,15 +17,20 @@ outputs = [
+   os.path.join(builder.buildFolder, 'includes', 'version_auto.inc'),
+ ]
+ 
+-with open(os.path.join(builder.sourcePath, '.git', 'HEAD')) as fp:
++git_dir = os.path.join(builder.sourcePath, '.git')
++if os.path.isfile(git_dir):
++  with open(git_dir, 'r') as hFile:
++      git_dir = os.path.realpath(os.path.join(git_dir, '..', hFile.readline().strip().replace('gitdir: ', '')))
++
++with open(os.path.join(git_dir, 'HEAD')) as fp:
+   head_contents = fp.read().strip()
+   if re.search('^[a-fA-F0-9]{40}$', head_contents):
+-    git_head_path = os.path.join(builder.sourcePath, '.git', 'HEAD')
++    git_head_path = os.path.join(git_dir, 'HEAD')
+   else:
+     git_state = head_contents.split(':')[1].strip()
+-    git_head_path = os.path.join(builder.sourcePath, '.git', git_state)
++    git_head_path = os.path.join(git_dir, git_state)
+     if not os.path.exists(git_head_path):
+-      git_head_path = os.path.join(builder.sourcePath, '.git', 'HEAD')
++      git_head_path = os.path.join(git_dir, 'HEAD')
+ 
+ sources = [
+   os.path.join(builder.sourcePath, 'product.version'),
 diff --git a/tools/checkout-deps.ps1 b/tools/checkout-deps.ps1
-index 4e710e29..e759c372 100644
+index 50ab1f2e..798d3b44 100644
 --- a/tools/checkout-deps.ps1
 +++ b/tools/checkout-deps.ps1
-@@ -59,23 +59,25 @@ if (-not (Test-Path "sourcemod" -PathType Container))
+@@ -69,23 +69,25 @@ if (-not (Test-Path "sourcemod" -PathType Container))
  
  Checkout-Repo -Name "mmsource-1.10" -Branch "1.10-dev" -Repo "https://github.com/alliedmodders/metamod-source.git"
  
@@ -562,9 +591,7 @@ index 4e710e29..e759c372 100644
  Set-Location ambuild
  & python setup.py install
  
--Set-Location ..
-\ No newline at end of file
-+Set-Location ..
+ Set-Location ..
 +
 +
 +$archive_ext = "zip"
