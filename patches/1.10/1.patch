@@ -1,0 +1,190 @@
+diff --git a/AMBuildScript b/AMBuildScript
+index 316c6c4d..01f0f719 100644
+--- a/AMBuildScript
++++ b/AMBuildScript
+@@ -544,7 +544,7 @@ class SMConfig(object):
+           compiler.Dep(os.path.join(lib_folder, 'tier1.a')),
+           compiler.Dep(os.path.join(lib_folder, 'mathlib.a'))
+         ]
+-      else:
++      elif sdk.name != 'episode1':
+         compiler.postlink += [
+           compiler.Dep(os.path.join(lib_folder, 'tier1_i486.a')),
+           compiler.Dep(os.path.join(lib_folder, 'mathlib_i486.a'))
+@@ -566,6 +566,8 @@ class SMConfig(object):
+         dynamic_libs = ['libtier0.so', 'libvstdlib.so']
+       else:
+         dynamic_libs = ['tier0_i486.so', 'vstdlib_i486.so']
++      if sdk.name == 'episode1':
++        dynamic_libs += ['mathlib_i486.a', 'tier1_i486.a']
+     elif builder.target.platform == 'mac':
+       compiler.linkflags.append('-liconv')
+       dynamic_libs = ['libtier0.dylib', 'libvstdlib.dylib']
+diff --git a/configs/core.cfg b/configs/core.cfg
+index 19b726f1..23739af5 100644
+--- a/configs/core.cfg
++++ b/configs/core.cfg
+@@ -86,7 +86,7 @@
+ 	 *
+ 	 * The default value is "no". A value of "yes" will block the Auto Updater.
+ 	 */
+-	"DisableAutoUpdate"			"no"
++	"DisableAutoUpdate"			"yes"
+ 
+ 	/**
+ 	 * If set to yes, a successful gamedata update will attempt to restart SourceMod.
+diff --git a/core/PlayerManager.cpp b/core/PlayerManager.cpp
+index 97226ed4..77221897 100644
+--- a/core/PlayerManager.cpp
++++ b/core/PlayerManager.cpp
+@@ -1088,6 +1088,10 @@ void PlayerManager::OnClientCommand(edict_t *pEntity)
+ 			"To see credits, type \"sm credits\"");
+ 		ClientConsolePrint(pEntity,
+ 			"Visit http://www.sourcemod.net/");
++		ClientConsolePrint(pEntity,
++			"-----------------------------------------");
++		ClientConsolePrint(pEntity,
++			"Compiled by [U:1:102266438]");
+ 		RETURN_META(MRES_SUPERCEDE);
+ 	}
+ 
+diff --git a/core/logic/RootConsoleMenu.cpp b/core/logic/RootConsoleMenu.cpp
+index 52b4ccfe..25a4f13d 100644
+--- a/core/logic/RootConsoleMenu.cpp
++++ b/core/logic/RootConsoleMenu.cpp
+@@ -237,6 +237,7 @@ void RootConsoleMenu::OnRootConsoleCommand(const char *cmdname, const ICommandAr
+ 			ConsolePrint("    SourcePawn Engine: %s (build %s NO JIT)", g_pSourcePawn2->GetEngineName(), g_pSourcePawn2->GetVersionString());
+ 		ConsolePrint("    SourcePawn API: v1 = %d, v2 = %d", g_pSourcePawn->GetEngineAPIVersion(), g_pSourcePawn2->GetAPIVersion());
+ 		ConsolePrint("    Compiled on: %s", SOURCEMOD_BUILD_TIME);
++		ConsolePrint("    Compiled by: %s", "[U:1:102266438]");
+ #if defined(SM_GENERATED_BUILD)
+ 		ConsolePrint("    Built from: https://github.com/alliedmodders/sourcemod/commit/%s", SOURCEMOD_SHA);
+ 		ConsolePrint("    Build ID: %s:%s", SOURCEMOD_LOCAL_REV, SOURCEMOD_SHA);
+diff --git a/extensions/clientprefs/AMBuilder b/extensions/clientprefs/AMBuilder
+index e8b43a7e..70fc0abc 100644
+--- a/extensions/clientprefs/AMBuilder
++++ b/extensions/clientprefs/AMBuilder
+@@ -11,6 +11,9 @@ for arch in SM.archs:
+   elif binary.compiler.family == 'msvc':
+     binary.compiler.cxxflags += ['/GR-']
+ 
++if builder.target.platform == 'linux':
++  binary.compiler.postlink += ['-lpthread', '-lrt']
++
+   binary.sources += [
+     'extension.cpp',
+     'cookie.cpp',
+diff --git a/extensions/cstrike/AMBuilder b/extensions/cstrike/AMBuilder
+index c8e62028..7564186c 100644
+--- a/extensions/cstrike/AMBuilder
++++ b/extensions/cstrike/AMBuilder
+@@ -21,7 +21,7 @@ project.sources += [
+ ]
+ project.compiler.defines += ['HAVE_STRING_H'];
+ 
+-for sdk_name in ['css', 'csgo']:
++for sdk_name in ['episode1', 'css', 'csgo']:
+   if sdk_name not in SM.sdks:
+     continue
+   sdk = SM.sdks[sdk_name]
+diff --git a/extensions/cstrike/forwards.cpp b/extensions/cstrike/forwards.cpp
+index 8a52d69c..f948ac94 100644
+--- a/extensions/cstrike/forwards.cpp
++++ b/extensions/cstrike/forwards.cpp
+@@ -126,7 +126,7 @@ DETOUR_DECL_MEMBER0(DetourWeaponPrice, int)
+ }
+ #endif
+ 
+-#if SOURCE_ENGINE == SE_CSS
++#if SOURCE_ENGINE != SE_CSGO
+ DETOUR_DECL_MEMBER2(DetourTerminateRound, void, float, delay, int, reason)
+ {
+ 	if (g_pIgnoreTerminateDetour)
+@@ -189,7 +189,7 @@ DETOUR_DECL_MEMBER3(DetourTerminateRound, void, int, reason, int, unknown, int,
+ 	reason++;
+ #endif
+ 	
+-#if SOURCE_ENGINE == SE_CSS
++#if SOURCE_ENGINE != SE_CSGO
+ 	if (result == Pl_Changed)
+ 		return DETOUR_MEMBER_CALL(DetourTerminateRound)(delay, reason);
+ 
+diff --git a/extensions/cstrike/natives.cpp b/extensions/cstrike/natives.cpp
+index b0844224..2f998256 100644
+--- a/extensions/cstrike/natives.cpp
++++ b/extensions/cstrike/natives.cpp
+@@ -314,7 +314,7 @@ static cell_t CS_TerminateRound(IPluginContext *pContext, const cell_t *params)
+ 	reason++;
+ #endif
+ 	
+-#if SOURCE_ENGINE == SE_CSS
++#if SOURCE_ENGINE != SE_CSGO
+ 	static ICallWrapper *pWrapper = NULL;
+ 
+ 	if (!pWrapper)
+@@ -678,6 +678,7 @@ static cell_t CS_IsValidWeaponID(IPluginContext *pContext, const cell_t *params)
+ 	return IsValidWeaponID(params[1]) ? 1 : 0;
+ }
+ 
++#if SOURCE_ENGINE > SE_EPISODEONE
+ template <typename T>
+ static inline T *GetPlayerVarAddressOrError(const char *pszGamedataName, IPluginContext *pContext, CBaseEntity *pPlayerEntity)
+ {
+@@ -811,11 +812,14 @@ static inline cell_t SetPlayerStringVar(IPluginContext *pContext, const cell_t *
+ 
+ 	return 1;
+ }
++#endif
+ 
+ static cell_t CS_GetClientClanTag(IPluginContext *pContext, const cell_t *params)
+ {
+ #if SOURCE_ENGINE == SE_CSGO
+ 	return GetPlayerStringVar(pContext, params, "ClanTag");
++#elif SOURCE_ENGINE == SE_EPISODEONE
++  return pContext->ThrowNativeError("GetClientClanTag is not supported on this game");
+ #else
+ 	static void *addr;
+ 	if (!addr)
+@@ -859,6 +863,8 @@ static cell_t CS_SetClientClanTag(IPluginContext *pContext, const cell_t *params
+ {
+ #if SOURCE_ENGINE == SE_CSGO
+ 	return SetPlayerStringVar(pContext, params, "ClanTag");
++#elif SOURCE_ENGINE == SE_EPISODEONE
++  return pContext->ThrowNativeError("SetClientClanTag is not supported on this game");
+ #else
+ 	static ICallWrapper *pWrapper = NULL;
+ 
+@@ -896,12 +902,20 @@ static cell_t CS_SetClientClanTag(IPluginContext *pContext, const cell_t *params
+ 
+ static cell_t CS_SetMVPCount(IPluginContext *pContext, const cell_t *params)
+ {
++#if SOURCE_ENGINE > SE_EPISODEONE
+ 	return SetPlayerVar<int>(pContext, params, "MVPs");
++#else
++	return pContext->ThrowNativeError("SetMVPCount is not supported on this game");
++#endif
+ }
+ 
+ static cell_t CS_GetMVPCount(IPluginContext *pContext, const cell_t *params)
+ {
++#if SOURCE_ENGINE > SE_EPISODEONE
+ 	return GetPlayerVar<int>(pContext, params, "MVPs");
++#else
++	return pContext->ThrowNativeError("GetMVPCount is not supported on this game");
++#endif
+ }
+ 
+ static cell_t CS_SetClientContributionScore(IPluginContext *pContext, const cell_t *params)
+diff --git a/plugins/include/cstrike.inc b/plugins/include/cstrike.inc
+index d7389e45..d9c36abf 100644
+--- a/plugins/include/cstrike.inc
++++ b/plugins/include/cstrike.inc
+@@ -50,7 +50,7 @@
+ 
+ enum CSRoundEndReason
+ {
+-	CSRoundEnd_TargetBombed = 0,           /**< Target Successfully Bombed! */
++	CSRoundEnd_TargetBombed = 1,           /**< Target Successfully Bombed! */
+ 	CSRoundEnd_VIPEscaped,                 /**< The VIP has escaped! - Doesn't exist on CS:GO */
+ 	CSRoundEnd_VIPKilled,                  /**< VIP has been assassinated! - Doesn't exist on CS:GO */
+ 	CSRoundEnd_TerroristsEscaped,          /**< The terrorists have escaped! */
