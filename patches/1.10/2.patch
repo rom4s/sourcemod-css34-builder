@@ -608,9 +608,18 @@ index 50ab1f2e..798d3b44 100644
 +    & Remove-Item "$mysqlfolder.$archive_ext"
 +}
 diff --git a/tools/checkout-deps.sh b/tools/checkout-deps.sh
-index 3524aa38..12710d08 100755
+index 3524aa38..bfd84e11 100755
 --- a/tools/checkout-deps.sh
 +++ b/tools/checkout-deps.sh
+@@ -30,7 +30,7 @@ getmysql ()
+     if [ `command -v wget` ]; then
+       wget $mysqlurl -O $mysqlfolder.$archive_ext
+     elif [ `command -v curl` ]; then
+-      curl -o $mysqlfolder.$archive_ext $mysqlurl
++      curl -sSLo $mysqlfolder.$archive_ext $mysqlurl
+     else
+       echo "Failed to locate wget or curl. Install one of these programs to download MySQL."
+       exit 1
 @@ -66,7 +66,7 @@ elif [ $iswin -eq 0 ]; then
    mysqlver=mysql-5.6.15-linux-glibc2.5-x86_64
    mysqlurl=https://cdn.mysql.com/archives/mysql-5.6/$mysqlver.$archive_ext
