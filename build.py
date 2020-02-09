@@ -318,7 +318,7 @@ def _upload_github(out_archive):
         print('[Upload:GitHub] FAILED to get response[upload_url]!')
         return
 
-    file_from = os.path.join(out_archive)
+    file_from = os.path.join(OUT, 'package', out_archive)
     file_to = URITemplate(response['upload_url']).expand(name=out_archive)
 
     # upload release asset
@@ -366,7 +366,7 @@ def _upload_bitbucket(out_archive):
         print('[Upload:Bitbucket] FAILED to create repository (status: {0}). SKIP!'.format(response.status_code))
         return
 
-    file_from = os.path.join(out_archive)
+    file_from = os.path.join(OUT, 'package', out_archive)
 
     # upload release asset
     print('[Upload:Bitbucket] Trying to upload release asset...')
@@ -427,7 +427,7 @@ except IOError as e:
 sm_commit = int(subprocess.check_output('git rev-list --count HEAD', shell=True).strip())
 sm_revision = subprocess.check_output('git rev-parse HEAD', shell=True).strip()
 
-os.chdir(script_dir)
+os.chdir(sourcemod_dir, '..')
 try:
     build_commit = subprocess.check_output('git rev-parse HEAD', shell=True).strip()
 except:
