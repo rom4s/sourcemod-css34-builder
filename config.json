@@ -21,7 +21,12 @@
 		"6453": {
 			"CC": "clang-9",
 			"CXX": "clang++-9",
-			"patch": "1.patch"
+			"patch": "6453.patch"
+		},
+		"6539": {
+			"CC": "clang-9",
+			"CXX": "clang++-9",
+			"patch": "6539.patch"
 		}
 	}
 }
