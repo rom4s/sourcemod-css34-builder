@@ -9,12 +9,12 @@
 		"6239": {
 			"CC": "clang-6.0",
 			"CXX": "clang++-6.0",
-			"patch": "1.patch"
+			"patch": "6239.patch"
 		},
 		"6460": {
 			"CC": "clang-9",
 			"CXX": "clang++-9",
-			"patch": "2.patch"
+			"patch": "6460.patch"
 		}
 	},
 	"1.11": { 

@@ -1,5 +1,5 @@
 diff --git a/AMBuildScript b/AMBuildScript
-index 9e52a273..8bbfdc03 100644
+index 05cbb356..c6769435 100644
 --- a/AMBuildScript
 +++ b/AMBuildScript
 @@ -36,6 +36,7 @@ CSGO = {
@@ -10,7 +10,7 @@ index 9e52a273..8bbfdc03 100644
    'episode1':  SDK('HL2SDK', '2.ep1', '1', 'EPISODEONE', WinLinux, 'episode1'),
    'ep2':  SDK('HL2SDKOB', '2.ep2', '3', 'ORANGEBOX', WinLinux, 'orangebox'),
    'css':  SDK('HL2SDKCSS', '2.css', '6', 'CSS', WinLinuxMac, 'css'),
-@@ -487,13 +488,14 @@ class SMConfig(object):
+@@ -483,13 +484,14 @@ class SMConfig(object):
      SetArchFlags(compiler, arch, builder.target.platform)
  
      compiler.cxxincludes += [
@@ -27,7 +27,7 @@ index 9e52a273..8bbfdc03 100644
      paths = [
        ['public'],
        ['public', 'engine'],
-@@ -568,7 +570,7 @@ class SMConfig(object):
+@@ -564,7 +566,7 @@ class SMConfig(object):
            compiler.Dep(os.path.join(lib_folder, 'tier1.a')),
            compiler.Dep(os.path.join(lib_folder, 'mathlib.a'))
          ]
@@ -36,7 +36,7 @@ index 9e52a273..8bbfdc03 100644
          compiler.postlink += [
            compiler.Dep(os.path.join(lib_folder, 'tier1_i486.a')),
            compiler.Dep(os.path.join(lib_folder, 'mathlib_i486.a'))
-@@ -590,6 +592,8 @@ class SMConfig(object):
+@@ -586,6 +588,8 @@ class SMConfig(object):
          dynamic_libs = ['libtier0.so', 'libvstdlib.so']
        else:
          dynamic_libs = ['tier0_i486.so', 'vstdlib_i486.so']
@@ -59,7 +59,7 @@ index 19b726f1..4ffd17a0 100644
  	/**
  	 * If set to yes, a successful gamedata update will attempt to restart SourceMod.
 diff --git a/core/ConsoleDetours.cpp b/core/ConsoleDetours.cpp
-index 1e445458..8ef78f99 100644
+index 1e445458..f9457ba6 100644
 --- a/core/ConsoleDetours.cpp
 +++ b/core/ConsoleDetours.cpp
 @@ -65,7 +65,13 @@
@@ -77,7 +77,7 @@ index 1e445458..8ef78f99 100644
  
  class GenericCommandHooker : public IConCommandLinkListener
 diff --git a/core/CoreConfig.cpp b/core/CoreConfig.cpp
-index c1fb80f1..57659d1b 100644
+index c1fb80f1..5e37425e 100644
 --- a/core/CoreConfig.cpp
 +++ b/core/CoreConfig.cpp
 @@ -71,7 +71,12 @@ void CheckAndFinalizeConfigs();
@@ -95,7 +95,7 @@ index c1fb80f1..57659d1b 100644
  #endif
  {
 diff --git a/core/NextMap.cpp b/core/NextMap.cpp
-index 5e426390..dae34173 100644
+index 5e426390..b3bc29d8 100644
 --- a/core/NextMap.cpp
 +++ b/core/NextMap.cpp
 @@ -51,7 +51,12 @@ SH_DECL_HOOK4_void(IVEngineServer, ChangeLevel, SH_NOATTRIB, 0, const char *, co
@@ -113,10 +113,10 @@ index 5e426390..dae34173 100644
  
  ConCommand *changeLevelCmd = NULL;
 diff --git a/core/PlayerManager.cpp b/core/PlayerManager.cpp
-index 0ab95008..b84ed997 100644
+index b936098b..a9a8a694 100644
 --- a/core/PlayerManager.cpp
 +++ b/core/PlayerManager.cpp
-@@ -91,7 +91,12 @@ SH_DECL_HOOK1_void(IServerGameDLL, SetServerHibernation, SH_NOATTRIB, 0, bool);
+@@ -90,7 +90,12 @@ SH_DECL_HOOK1_void(IServerGameDLL, SetServerHibernation, SH_NOATTRIB, 0, bool);
  #if SOURCE_ENGINE >= SE_ORANGEBOX
  SH_DECL_EXTERN1_void(ConCommand, Dispatch, SH_NOATTRIB, false, const CCommand &);
  #else
@@ -128,9 +128,9 @@ index 0ab95008..b84ed997 100644
 +	extern bool __SourceHook_FHRemoveConCommandDispatch(void *, bool, class fastdelegate::FastDelegate0<void>);
 +	#endif
  #endif
- SH_DECL_HOOK2_void(IVEngineServer, ClientPrintf, SH_NOATTRIB, 0, edict_t *, const char *);
  
-@@ -1179,6 +1184,10 @@ void PlayerManager::OnClientCommand(edict_t *pEntity)
+ ConCommand *maxplayersCmd = NULL;
+@@ -1088,6 +1093,10 @@ void PlayerManager::OnClientCommand(edict_t *pEntity)
  			"To see credits, type \"sm credits\"");
  		ClientConsolePrint(pEntity,
  			"Visit http://www.sourcemod.net/");
@@ -154,7 +154,7 @@ index 52b4ccfe..d7a53dbd 100644
  		ConsolePrint("    Built from: https://github.com/alliedmodders/sourcemod/commit/%s", SOURCEMOD_SHA);
  		ConsolePrint("    Build ID: %s:%s", SOURCEMOD_LOCAL_REV, SOURCEMOD_SHA);
 diff --git a/core/logic_bridge.cpp b/core/logic_bridge.cpp
-index 729599d3..c4a3cb7d 100644
+index 729599d3..3d0d0d98 100644
 --- a/core/logic_bridge.cpp
 +++ b/core/logic_bridge.cpp
 @@ -372,7 +372,11 @@ void UTIL_ConsolePrint(const char *fmt, ...)
@@ -185,7 +185,7 @@ index 729599d3..c4a3cb7d 100644
  		*ok = false;
  	}
 diff --git a/core/sourcemm_api.h b/core/sourcemm_api.h
-index 68372a10..fba26e97 100644
+index 68372a10..c6cbabc4 100644
 --- a/core/sourcemm_api.h
 +++ b/core/sourcemm_api.h
 @@ -41,6 +41,10 @@
@@ -315,7 +315,7 @@ index 1e6159fe..abb3bda6 100644
  
  static cell_t CS_SetClientContributionScore(IPluginContext *pContext, const cell_t *params)
 diff --git a/extensions/sdkhooks/extension.h b/extensions/sdkhooks/extension.h
-index 580be1d8..84bd44f7 100644
+index 1bd7267b..808f5fb0 100644
 --- a/extensions/sdkhooks/extension.h
 +++ b/extensions/sdkhooks/extension.h
 @@ -18,6 +18,12 @@
@@ -331,8 +331,23 @@ index 580be1d8..84bd44f7 100644
  #if SOURCE_ENGINE >= SE_CSS && SOURCE_ENGINE != SE_LEFT4DEAD
  #define GETMAXHEALTH_IS_VIRTUAL
  #endif
+@@ -78,11 +84,11 @@ enum SDKHookType
+ 	SDKHook_Reload,
+ 	SDKHook_ReloadPost,
+ 	SDKHook_GetMaxHealth,
+-	SDKHook_Blocked,
++	SDKHook_Blocked,
+ 	SDKHook_BlockedPost,
+ 	SDKHook_OnTakeDamage_Alive,
+-	SDKHook_OnTakeDamage_AlivePost,
+-	SDKHook_CanBeAutobalanced,
++	SDKHook_OnTakeDamage_AlivePost,
++	SDKHook_CanBeAutobalanced,
+ 	SDKHook_MAXHOOKS
+ };
+ 
 diff --git a/extensions/sdktools/extension.cpp b/extensions/sdktools/extension.cpp
-index 5c57c5ef..93ff79b7 100644
+index 5c57c5ef..fc84cced 100644
 --- a/extensions/sdktools/extension.cpp
 +++ b/extensions/sdktools/extension.cpp
 @@ -394,7 +394,8 @@ void SDKTools::NotifyInterfaceDrop(SMInterface *pInterface)
@@ -346,7 +361,7 @@ index 5c57c5ef..93ff79b7 100644
  
  bool SDKTools::LevelInit(char const *pMapName, char const *pMapEntities, char const *pOldLevel, char const *pLandmarkName, bool loadGame, bool background)
 diff --git a/loader/loader.cpp b/loader/loader.cpp
-index 9e242171..9b8626ef 100644
+index 9e242171..bb367327 100644
 --- a/loader/loader.cpp
 +++ b/loader/loader.cpp
 @@ -41,6 +41,10 @@
@@ -454,7 +469,7 @@ index 9e242171..9b8626ef 100644
  BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved)
  {
 diff --git a/plugins/include/cstrike.inc b/plugins/include/cstrike.inc
-index 2e073f78..f0149429 100644
+index c4239e13..9b4f9299 100644
 --- a/plugins/include/cstrike.inc
 +++ b/plugins/include/cstrike.inc
 @@ -52,7 +52,7 @@
@@ -467,7 +482,7 @@ index 2e073f78..f0149429 100644
  	CSRoundEnd_VIPKilled,                  /**< VIP has been assassinated! - Doesn't exist on CS:GO */
  	CSRoundEnd_TerroristsEscaped,          /**< The terrorists have escaped! */
 diff --git a/public/metamod_wrappers.h b/public/metamod_wrappers.h
-index 9ab73f38..bf2c5d10 100644
+index 9ab73f38..b18f87b1 100644
 --- a/public/metamod_wrappers.h
 +++ b/public/metamod_wrappers.h
 @@ -47,4 +47,33 @@
@@ -520,7 +535,7 @@ index a1fa411..8e04ad9 100644
  
  # Build the debug shell.
 diff --git a/tools/buildbot/Versioning b/tools/buildbot/Versioning
-index 994f052a..047eed54 100644
+index 994f052a..80da76b1 100644
 --- a/tools/buildbot/Versioning
 +++ b/tools/buildbot/Versioning
 @@ -17,15 +17,20 @@ outputs = [
@@ -549,10 +564,10 @@ index 994f052a..047eed54 100644
  sources = [
    os.path.join(builder.sourcePath, 'product.version'),
 diff --git a/tools/checkout-deps.ps1 b/tools/checkout-deps.ps1
-index f7b4f537..f42b05ec 100644
+index 50ab1f2e..798d3b44 100644
 --- a/tools/checkout-deps.ps1
 +++ b/tools/checkout-deps.ps1
-@@ -76,23 +76,26 @@ if (-not (Test-Path "sourcemod" -PathType Container))
+@@ -69,23 +69,25 @@ if (-not (Test-Path "sourcemod" -PathType Container))
  
  Checkout-Repo -Name "mmsource-1.10" -Branch "1.10-dev" -Repo "https://github.com/alliedmodders/metamod-source.git"
  
@@ -568,7 +583,7 @@ index f7b4f537..f42b05ec 100644
 -}
 -
 -$SDKS | % {
--    Checkout-Repo -Name "hl2sdk-$_" -Branch $_ -Repo "hl2sdk-proxy-repo" "https://github.com/alliedmodders/hl2sdk.git"
+-    Checkout-Repo -Name "hl2sdk-$_" -Branch $_ "hl2sdk-proxy-repo" -Repo "https://github.com/alliedmodders/hl2sdk.git"
 -}
 +Checkout-Repo -Name "hl2sdk-episode1" -Branch "episode1" -Repo "https://github.com/alliedmodders/hl2sdk.git"
  
@@ -577,7 +592,6 @@ index f7b4f537..f42b05ec 100644
  & python setup.py install
  
  Set-Location ..
-+
 +
 +
 +$archive_ext = "zip"
@@ -594,7 +608,7 @@ index f7b4f537..f42b05ec 100644
 +    & Remove-Item "$mysqlfolder.$archive_ext"
 +}
 diff --git a/tools/checkout-deps.sh b/tools/checkout-deps.sh
-index d2b10332..1b5d630b 100755
+index 3524aa38..bfd84e11 100755
 --- a/tools/checkout-deps.sh
 +++ b/tools/checkout-deps.sh
 @@ -27,10 +27,12 @@ fi
