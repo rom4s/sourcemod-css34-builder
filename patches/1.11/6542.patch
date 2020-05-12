@@ -1,0 +1,675 @@
+diff --git a/AMBuildScript b/AMBuildScript
+index 9e52a273..8bbfdc03 100644
+--- a/AMBuildScript
++++ b/AMBuildScript
+@@ -36,6 +36,7 @@ CSGO = {
+ }
+ 
+ PossibleSDKs = {
++  'ep1':  SDK('HL2SDK', '1.ep1', '1', 'EPISODEONE', WinLinux, 'episode1'),
+   'episode1':  SDK('HL2SDK', '2.ep1', '1', 'EPISODEONE', WinLinux, 'episode1'),
+   'ep2':  SDK('HL2SDKOB', '2.ep2', '3', 'ORANGEBOX', WinLinux, 'orangebox'),
+   'css':  SDK('HL2SDKCSS', '2.css', '6', 'CSS', WinLinuxMac, 'css'),
+@@ -487,13 +488,14 @@ class SMConfig(object):
+     SetArchFlags(compiler, arch, builder.target.platform)
+ 
+     compiler.cxxincludes += [
+-      os.path.join(self.mms_root, 'core'),
+-      os.path.join(self.mms_root, 'core', 'sourcehook'),
++      os.path.join(self.mms_root, 'core-legacy' if sdk.ext == '1.ep1' else 'core'),
++      os.path.join(self.mms_root, 'core-legacy' if sdk.ext == '1.ep1' else 'core', 'sourcehook'),
+     ]
+ 
+     defines = ['SE_' + PossibleSDKs[i].define + '=' + PossibleSDKs[i].code for i in PossibleSDKs]
+     compiler.defines += defines
+ 
++
+     paths = [
+       ['public'],
+       ['public', 'engine'],
+@@ -568,7 +570,7 @@ class SMConfig(object):
+           compiler.Dep(os.path.join(lib_folder, 'tier1.a')),
+           compiler.Dep(os.path.join(lib_folder, 'mathlib.a'))
+         ]
+-      else:
++      elif sdk.name != 'episode1':
+         compiler.postlink += [
+           compiler.Dep(os.path.join(lib_folder, 'tier1_i486.a')),
+           compiler.Dep(os.path.join(lib_folder, 'mathlib_i486.a'))
+@@ -590,6 +592,8 @@ class SMConfig(object):
+         dynamic_libs = ['libtier0.so', 'libvstdlib.so']
+       else:
+         dynamic_libs = ['tier0_i486.so', 'vstdlib_i486.so']
++      if sdk.name == 'episode1':
++        dynamic_libs += ['mathlib_i486.a', 'tier1_i486.a']
+     elif builder.target.platform == 'mac':
+       compiler.linkflags.append('-liconv')
+       dynamic_libs = ['libtier0.dylib', 'libvstdlib.dylib']
+diff --git a/configs/core.cfg b/configs/core.cfg
+index 19b726f1..4ffd17a0 100644
+--- a/configs/core.cfg
++++ b/configs/core.cfg
+@@ -86,7 +86,7 @@
+ 	 *
+ 	 * The default value is "no". A value of "yes" will block the Auto Updater.
+ 	 */
+-	"DisableAutoUpdate"			"no"
++	"DisableAutoUpdate"			"yes"
+ 
+ 	/**
+ 	 * If set to yes, a successful gamedata update will attempt to restart SourceMod.
+diff --git a/core/ConsoleDetours.cpp b/core/ConsoleDetours.cpp
+index 1e445458..8ef78f99 100644
+--- a/core/ConsoleDetours.cpp
++++ b/core/ConsoleDetours.cpp
+@@ -65,7 +65,13 @@
+ #if SOURCE_ENGINE >= SE_ORANGEBOX
+ 	SH_DECL_EXTERN1_void(ConCommand, Dispatch, SH_NOATTRIB, false, const CCommand &);
+ #else
++	#if SH_IMPL_VERSION >= 5
+ 	SH_DECL_EXTERN0_void(ConCommand, Dispatch, SH_NOATTRIB, false);
++	#else
++	extern int __SourceHook_FHVPAddConCommandDispatch(void *,bool,class fastdelegate::FastDelegate0<void>,bool);
++	extern int __SourceHook_FHAddConCommandDispatch(void *, bool, class fastdelegate::FastDelegate0<void>);
++	extern bool __SourceHook_FHRemoveConCommandDispatch(void *, bool, class fastdelegate::FastDelegate0<void>);
++	#endif
+ #endif
+ 
+ class GenericCommandHooker : public IConCommandLinkListener
+diff --git a/core/CoreConfig.cpp b/core/CoreConfig.cpp
+index c1fb80f1..57659d1b 100644
+--- a/core/CoreConfig.cpp
++++ b/core/CoreConfig.cpp
+@@ -71,7 +71,12 @@ void CheckAndFinalizeConfigs();
+ SH_DECL_EXTERN1_void(ConCommand, Dispatch, SH_NOATTRIB, false, const CCommand &);
+ void Hook_ExecDispatchPre(const CCommand &cmd)
+ #else
+-SH_DECL_EXTERN0_void(ConCommand, Dispatch, SH_NOATTRIB, false);
++	#if SH_IMPL_VERSION >= 5
++	SH_DECL_EXTERN0_void(ConCommand, Dispatch, SH_NOATTRIB, false);
++	#else
++	extern int __SourceHook_FHAddConCommandDispatch(void *, bool, class fastdelegate::FastDelegate0<void>);
++	extern bool __SourceHook_FHRemoveConCommandDispatch(void *, bool, class fastdelegate::FastDelegate0<void>);
++	#endif
+ void Hook_ExecDispatchPre()
+ #endif
+ {
+diff --git a/core/NextMap.cpp b/core/NextMap.cpp
+index 5e426390..dae34173 100644
+--- a/core/NextMap.cpp
++++ b/core/NextMap.cpp
+@@ -51,7 +51,12 @@ SH_DECL_HOOK4_void(IVEngineServer, ChangeLevel, SH_NOATTRIB, 0, const char *, co
+ #if SOURCE_ENGINE >= SE_ORANGEBOX
+ SH_DECL_EXTERN1_void(ConCommand, Dispatch, SH_NOATTRIB, false, const CCommand &);
+ #else
+-SH_DECL_EXTERN0_void(ConCommand, Dispatch, SH_NOATTRIB, false);
++	#if SH_IMPL_VERSION >= 5
++	SH_DECL_EXTERN0_void(ConCommand, Dispatch, SH_NOATTRIB, false);
++	#else
++	extern int __SourceHook_FHAddConCommandDispatch(void *, bool, class fastdelegate::FastDelegate0<void>);
++	extern bool __SourceHook_FHRemoveConCommandDispatch(void *, bool, class fastdelegate::FastDelegate0<void>);
++	#endif
+ #endif
+ 
+ ConCommand *changeLevelCmd = NULL;
+diff --git a/core/PlayerManager.cpp b/core/PlayerManager.cpp
+index 0ab95008..b84ed997 100644
+--- a/core/PlayerManager.cpp
++++ b/core/PlayerManager.cpp
+@@ -91,7 +91,12 @@ SH_DECL_HOOK1_void(IServerGameDLL, SetServerHibernation, SH_NOATTRIB, 0, bool);
+ #if SOURCE_ENGINE >= SE_ORANGEBOX
+ SH_DECL_EXTERN1_void(ConCommand, Dispatch, SH_NOATTRIB, false, const CCommand &);
+ #else
+-SH_DECL_EXTERN0_void(ConCommand, Dispatch, SH_NOATTRIB, false);
++	#if SH_IMPL_VERSION >= 5
++	SH_DECL_EXTERN0_void(ConCommand, Dispatch, SH_NOATTRIB, false);
++	#else
++	extern int __SourceHook_FHAddConCommandDispatch(void *, bool, class fastdelegate::FastDelegate0<void>);
++	extern bool __SourceHook_FHRemoveConCommandDispatch(void *, bool, class fastdelegate::FastDelegate0<void>);
++	#endif
+ #endif
+ SH_DECL_HOOK2_void(IVEngineServer, ClientPrintf, SH_NOATTRIB, 0, edict_t *, const char *);
+ 
+@@ -1179,6 +1184,10 @@ void PlayerManager::OnClientCommand(edict_t *pEntity)
+ 			"To see credits, type \"sm credits\"");
+ 		ClientConsolePrint(pEntity,
+ 			"Visit http://www.sourcemod.net/");
++		ClientConsolePrint(pEntity,
++			"-----------------------------------------");
++		ClientConsolePrint(pEntity,
++			"Patched by [U:1:102266438]");
+ 		RETURN_META(MRES_SUPERCEDE);
+ 	}
+ 
+diff --git a/core/logic/Logger.cpp b/core/logic/Logger.cpp
+index e8b299da..31ba4ece 100644
+--- a/core/logic/Logger.cpp
++++ b/core/logic/Logger.cpp
+@@ -349,13 +349,17 @@ void Logger::_UpdateFiles(bool bLevelChange)
+ 		_CloseNormal();
+ 		m_NormalFileName = buff;
+ 	}
++#if SOURCE_ENGINE != SE_EPISODEONE
+ 	else
+ 	{
++#endif
+ 		if (bLevelChange)
+ 		{
+ 			LogMessage("-------- Mapchange to %s --------", m_CurrentMapName.chars());
+ 		}
++#if SOURCE_ENGINE != SE_EPISODEONE
+ 	}
++#endif
+ 
+ 	g_pSM->BuildPath(Path_SM, buff, sizeof(buff), "logs/errors_%s.log", currentDate.chars());
+ 	if (bLevelChange || m_ErrorFileName.compare(buff))
+diff --git a/core/logic/RootConsoleMenu.cpp b/core/logic/RootConsoleMenu.cpp
+index 52b4ccfe..d7a53dbd 100644
+--- a/core/logic/RootConsoleMenu.cpp
++++ b/core/logic/RootConsoleMenu.cpp
+@@ -237,6 +237,7 @@ void RootConsoleMenu::OnRootConsoleCommand(const char *cmdname, const ICommandAr
+ 			ConsolePrint("    SourcePawn Engine: %s (build %s NO JIT)", g_pSourcePawn2->GetEngineName(), g_pSourcePawn2->GetVersionString());
+ 		ConsolePrint("    SourcePawn API: v1 = %d, v2 = %d", g_pSourcePawn->GetEngineAPIVersion(), g_pSourcePawn2->GetAPIVersion());
+ 		ConsolePrint("    Compiled on: %s", SOURCEMOD_BUILD_TIME);
++		ConsolePrint("    Patched by: %s", "[U:1:102266438]");
+ #if defined(SM_GENERATED_BUILD)
+ 		ConsolePrint("    Built from: https://github.com/alliedmodders/sourcemod/commit/%s", SOURCEMOD_SHA);
+ 		ConsolePrint("    Build ID: %s:%s", SOURCEMOD_LOCAL_REV, SOURCEMOD_SHA);
+diff --git a/core/logic_bridge.cpp b/core/logic_bridge.cpp
+index 729599d3..c4a3cb7d 100644
+--- a/core/logic_bridge.cpp
++++ b/core/logic_bridge.cpp
+@@ -372,7 +372,11 @@ void UTIL_ConsolePrint(const char *fmt, ...)
+ #elif SOURCE_ENGINE == SE_CONTAGION
+ #define GAMEFIX "2.contagion"
+ #else
+-#define GAMEFIX "2.ep1"
++	#if SH_IMPL_VERSION >= 5
++	#define GAMEFIX "2.ep1"
++	#else
++	#define GAMEFIX "1.ep1"
++	#endif
+ #endif
+ 
+ static ServerGlobals serverGlobals;
+@@ -579,7 +583,13 @@ int CoreProviderImpl::LoadMMSPlugin(const char *file, bool *ok, char *error, siz
+ 
+ 	Pl_Status status;
+ 
++#ifndef METAMOD_PLAPI_VERSION
++	const char *filep;
++	PluginId source;
++        if (!id || (g_pMMPlugins->Query(id, filep, status, source) && status < Pl_Paused))
++#else
+ 	if (!id || (g_pMMPlugins->Query(id, NULL, &status, NULL) && status < Pl_Paused))
++#endif
+ 	{
+ 		*ok = false;
+ 	}
+diff --git a/core/sourcemm_api.h b/core/sourcemm_api.h
+index 68372a10..fba26e97 100644
+--- a/core/sourcemm_api.h
++++ b/core/sourcemm_api.h
+@@ -41,6 +41,10 @@
+ #include <IEngineSound.h>
+ #include <toolframework/itoolentity.h>
+ 
++#ifndef METAMOD_PLAPI_VERSION
++	#include <metamod_wrappers.h>
++#endif
++
+ /**
+  * @file Contains wrappers around required Metamod:Source API exports
+  */
+diff --git a/extensions/clientprefs/AMBuilder b/extensions/clientprefs/AMBuilder
+index e8b43a7e..9f06ca77 100644
+--- a/extensions/clientprefs/AMBuilder
++++ b/extensions/clientprefs/AMBuilder
+@@ -11,6 +11,9 @@ for arch in SM.archs:
+   elif binary.compiler.family == 'msvc':
+     binary.compiler.cxxflags += ['/GR-']
+ 
++  if builder.target.platform == 'linux':
++    binary.compiler.postlink += ['-lpthread', '-lrt']
++
+   binary.sources += [
+     'extension.cpp',
+     'cookie.cpp',
+diff --git a/extensions/cstrike/AMBuilder b/extensions/cstrike/AMBuilder
+index c8e62028..93995351 100644
+--- a/extensions/cstrike/AMBuilder
++++ b/extensions/cstrike/AMBuilder
+@@ -21,7 +21,7 @@ project.sources += [
+ ]
+ project.compiler.defines += ['HAVE_STRING_H'];
+ 
+-for sdk_name in ['css', 'csgo']:
++for sdk_name in ['ep1','episode1', 'css', 'csgo']:
+   if sdk_name not in SM.sdks:
+     continue
+   sdk = SM.sdks[sdk_name]
+diff --git a/extensions/cstrike/forwards.cpp b/extensions/cstrike/forwards.cpp
+index faaba09e..23fffa7a 100644
+--- a/extensions/cstrike/forwards.cpp
++++ b/extensions/cstrike/forwards.cpp
+@@ -126,7 +126,7 @@ DETOUR_DECL_MEMBER0(DetourWeaponPrice, int)
+ }
+ #endif
+ 
+-#if SOURCE_ENGINE == SE_CSS
++#if SOURCE_ENGINE != SE_CSGO
+ DETOUR_DECL_MEMBER2(DetourTerminateRound, void, float, delay, int, reason)
+ {
+ 	if (g_pIgnoreTerminateDetour)
+@@ -189,7 +189,7 @@ DETOUR_DECL_MEMBER3(DetourTerminateRound, void, int, reason, int, unknown, int,
+ 	reason++;
+ #endif
+ 	
+-#if SOURCE_ENGINE == SE_CSS
++#if SOURCE_ENGINE != SE_CSGO
+ 	if (result == Pl_Changed)
+ 		return DETOUR_MEMBER_CALL(DetourTerminateRound)(delay, reason);
+ 
+diff --git a/extensions/cstrike/natives.cpp b/extensions/cstrike/natives.cpp
+index 1e6159fe..abb3bda6 100644
+--- a/extensions/cstrike/natives.cpp
++++ b/extensions/cstrike/natives.cpp
+@@ -297,7 +297,7 @@ static cell_t CS_TerminateRound(IPluginContext *pContext, const cell_t *params)
+ 	reason++;
+ #endif
+ 	
+-#if SOURCE_ENGINE == SE_CSS
++#if SOURCE_ENGINE != SE_CSGO
+ 	static ICallWrapper *pWrapper = NULL;
+ 
+ 	if (!pWrapper)
+@@ -643,6 +643,7 @@ static cell_t CS_IsValidWeaponID(IPluginContext *pContext, const cell_t *params)
+ 	return IsValidWeaponID(params[1]) ? 1 : 0;
+ }
+ 
++#if SOURCE_ENGINE > SE_EPISODEONE
+ template <typename T>
+ static inline T *GetPlayerVarAddressOrError(const char *pszGamedataName, IPluginContext *pContext, CBaseEntity *pPlayerEntity)
+ {
+@@ -776,11 +777,14 @@ static inline cell_t SetPlayerStringVar(IPluginContext *pContext, const cell_t *
+ 
+ 	return 1;
+ }
++#endif
+ 
+ static cell_t CS_GetClientClanTag(IPluginContext *pContext, const cell_t *params)
+ {
+ #if SOURCE_ENGINE == SE_CSGO
+ 	return GetPlayerStringVar(pContext, params, "ClanTag");
++#elif SOURCE_ENGINE == SE_EPISODEONE
++  return pContext->ThrowNativeError("GetClientClanTag is not supported on this game");
+ #else
+ 	static void *addr;
+ 	if (!addr)
+@@ -824,6 +828,8 @@ static cell_t CS_SetClientClanTag(IPluginContext *pContext, const cell_t *params
+ {
+ #if SOURCE_ENGINE == SE_CSGO
+ 	return SetPlayerStringVar(pContext, params, "ClanTag");
++#elif SOURCE_ENGINE == SE_EPISODEONE
++  return pContext->ThrowNativeError("SetClientClanTag is not supported on this game");
+ #else
+ 	static ICallWrapper *pWrapper = NULL;
+ 
+@@ -855,12 +861,20 @@ static cell_t CS_SetClientClanTag(IPluginContext *pContext, const cell_t *params
+ 
+ static cell_t CS_SetMVPCount(IPluginContext *pContext, const cell_t *params)
+ {
++#if SOURCE_ENGINE > SE_EPISODEONE
+ 	return SetPlayerVar<int>(pContext, params, "MVPs");
++#else
++	return pContext->ThrowNativeError("SetMVPCount is not supported on this game");
++#endif
+ }
+ 
+ static cell_t CS_GetMVPCount(IPluginContext *pContext, const cell_t *params)
+ {
++#if SOURCE_ENGINE > SE_EPISODEONE
+ 	return GetPlayerVar<int>(pContext, params, "MVPs");
++#else
++	return pContext->ThrowNativeError("GetMVPCount is not supported on this game");
++#endif
+ }
+ 
+ static cell_t CS_SetClientContributionScore(IPluginContext *pContext, const cell_t *params)
+diff --git a/extensions/sdkhooks/extension.h b/extensions/sdkhooks/extension.h
+index 580be1d8..84bd44f7 100644
+--- a/extensions/sdkhooks/extension.h
++++ b/extensions/sdkhooks/extension.h
+@@ -18,6 +18,12 @@
+ 
+ #include "takedamageinfohack.h"
+ 
++#ifndef METAMOD_PLAPI_VERSION
++#define GetCGlobals pGlobals
++#define GetEngineFactory engineFactory
++#define GetServerFactory serverFactory
++#endif
++
+ #if SOURCE_ENGINE >= SE_CSS && SOURCE_ENGINE != SE_LEFT4DEAD
+ #define GETMAXHEALTH_IS_VIRTUAL
+ #endif
+diff --git a/extensions/sdktools/extension.cpp b/extensions/sdktools/extension.cpp
+index 5c57c5ef..93ff79b7 100644
+--- a/extensions/sdktools/extension.cpp
++++ b/extensions/sdktools/extension.cpp
+@@ -394,7 +394,8 @@ void SDKTools::NotifyInterfaceDrop(SMInterface *pInterface)
+ 
+ bool SDKTools::RegisterConCommandBase(ConCommandBase *pVar)
+ {
+-	return g_SMAPI->RegisterConCommandBase(g_PLAPI, pVar);
++	/* Always call META_REGCVAR instead of going through the engine. */
++	return META_REGCVAR(pVar);
+ }
+ 
+ bool SDKTools::LevelInit(char const *pMapName, char const *pMapEntities, char const *pOldLevel, char const *pLandmarkName, bool loadGame, bool background)
+diff --git a/loader/loader.cpp b/loader/loader.cpp
+index 9e242171..9b8626ef 100644
+--- a/loader/loader.cpp
++++ b/loader/loader.cpp
+@@ -41,6 +41,10 @@
+ 	#define PLATFORM_EXT			".dll"
+ 	#define vsnprintf				_vsnprintf
+ 	#define PATH_SEP_CHAR			"\\"
++	inline bool IsPathSepChar(char c) 
++	{
++		return (c == '/' || c == '\\');
++	}
+ 	#include <Windows.h>
+ #else
+ 	#define DLL_EXPORT				extern "C" __attribute__((visibility("default")))
+@@ -54,6 +58,10 @@
+ 	#endif
+ 	typedef void *					HINSTANCE;
+ 	#define PATH_SEP_CHAR			"/"
++	inline bool IsPathSepChar(char c) 
++	{
++		return (c == '/');
++	}
+ 	#include <dlfcn.h>
+ #endif
+ 
+@@ -64,6 +72,7 @@
+ #endif
+ 
+ #define METAMOD_API_MAJOR			2
++#define FILENAME_1_4_EP1			PLATFORM_ARCH_FOLDER "sourcemod.1.ep1" PLATFORM_EXT
+ #define FILENAME_1_6_EP2			PLATFORM_ARCH_FOLDER "sourcemod.2.ep2" PLATFORM_EXT
+ #define FILENAME_1_6_EP1			PLATFORM_ARCH_FOLDER "sourcemod.2.ep1" PLATFORM_EXT
+ #define FILENAME_1_6_L4D			PLATFORM_ARCH_FOLDER "sourcemod.2.l4d" PLATFORM_EXT
+@@ -185,6 +194,28 @@ error:
+ 	return NULL;
+ }
+ 
++bool GetFileOfAddress(void *pAddr, char *buffer, size_t maxlength)
++{
++#if defined _MSC_VER
++	MEMORY_BASIC_INFORMATION mem;
++	if (!VirtualQuery(pAddr, &mem, sizeof(mem)))
++		return false;
++	if (mem.AllocationBase == NULL)
++		return false;
++	HMODULE dll = (HMODULE)mem.AllocationBase;
++	GetModuleFileName(dll, (LPTSTR)buffer, maxlength);
++#else
++	Dl_info info;
++	if (!dladdr(pAddr, &info))
++		return false;
++	if (!info.dli_fbase || !info.dli_fname)
++		return false;
++	const char *dllpath = info.dli_fname;
++	snprintf(buffer, maxlength, "%s", dllpath);
++#endif
++	return true;
++}
++
+ DLL_EXPORT METAMOD_PLUGIN *CreateInterface_MMS(const MetamodVersionInfo *mvi, const MetamodLoaderInfo *mli)
+ {
+ 	const char *filename;
+@@ -354,6 +385,44 @@ DLL_EXPORT void UnloadInterface_MMS()
+ 	}
+ }
+ 
++DLL_EXPORT void *CreateInterface(const char *iface, int *ret)
++{
++	/**
++	 * If a load has already been attempted, bail out immediately.
++	 */
++	if (load_attempted)
++	{
++		return NULL;
++	}
++
++	if (strcmp(iface, METAMOD_PLAPI_NAME) == 0)
++	{
++		char thisfile[256];
++		char targetfile[256];
++
++		if (!GetFileOfAddress((void *)CreateInterface_MMS, thisfile, sizeof(thisfile)))
++		{
++			return NULL;
++		}
++
++		size_t len = strlen(thisfile);
++		for (size_t iter=len-1; iter<len; iter--)
++		{
++			if (IsPathSepChar(thisfile[iter]))
++			{
++				thisfile[iter] = '\0';
++				break;
++			}
++		}
++
++		UTIL_Format(targetfile, sizeof(targetfile), "%s" PATH_SEP_CHAR FILENAME_1_4_EP1, thisfile);
++
++		return _GetPluginPtr(targetfile, METAMOD_FAIL_API_V1);
++	}
++
++	return NULL;
++}
++
+ #if defined _MSC_VER
+ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved)
+ {
+diff --git a/plugins/include/cstrike.inc b/plugins/include/cstrike.inc
+index 2e073f78..f0149429 100644
+--- a/plugins/include/cstrike.inc
++++ b/plugins/include/cstrike.inc
+@@ -52,7 +52,7 @@
+ 
+ enum CSRoundEndReason
+ {
+-	CSRoundEnd_TargetBombed = 0,           /**< Target Successfully Bombed! */
++	CSRoundEnd_TargetBombed = 1,           /**< Target Successfully Bombed! */
+ 	CSRoundEnd_VIPEscaped,                 /**< The VIP has escaped! - Doesn't exist on CS:GO */
+ 	CSRoundEnd_VIPKilled,                  /**< VIP has been assassinated! - Doesn't exist on CS:GO */
+ 	CSRoundEnd_TerroristsEscaped,          /**< The terrorists have escaped! */
+diff --git a/public/metamod_wrappers.h b/public/metamod_wrappers.h
+index 9ab73f38..bf2c5d10 100644
+--- a/public/metamod_wrappers.h
++++ b/public/metamod_wrappers.h
+@@ -47,4 +47,33 @@
+ 
+ #define METAMOD_PLAPI_NAME		PLAPI_NAME
+ 
++/* */
++#ifndef METAMOD_PLAPI_VERSION
++#define SOURCE_ENGINE_UNKNOWN			0				/**< Could not determine the engine version */
++#define SOURCE_ENGINE_ORIGINAL			1				/**< Original Source Engine (used by The Ship) */
++#define SOURCE_ENGINE_EPISODEONE		2				/**< Episode 1 Source Engine (second major SDK) */
++#define SOURCE_ENGINE_ORANGEBOX			3				/**< Orange Box Source Engine (third major SDK) */
++#define SOURCE_ENGINE_LEFT4DEAD			4				/**< Left 4 Dead */
++#define SOURCE_ENGINE_DARKMESSIAH		5				/**< Dark Messiah Multiplayer (based on original engine) */
++#define SOURCE_ENGINE_ORANGEBOXVALVE_DEPRECATED	6				/**< Orange Box Source Engine for Valve games (TF2/DOD:S/HL2DM) */
++#define SOURCE_ENGINE_LEFT4DEAD2		7				/**< Left 4 Dead 2 */
++#define SOURCE_ENGINE_ALIENSWARM		8				/**< Alien Swarm */
++#define SOURCE_ENGINE_BLOODYGOODTIME	9				/**< Bloody Good Time */
++#define SOURCE_ENGINE_EYE				10				/**< E.Y.E Divine Cybermancy */
++#define SOURCE_ENGINE_PORTAL2			11				/**< Portal 2 */
++#define SOURCE_ENGINE_CSGO				12				/**< Counter-Strike: Global Offensive */
++#define SOURCE_ENGINE_CSS				13				/**< Counter-Strike: Source (sometimes older version of Orange Box Valve) */
++#define SOURCE_ENGINE_DOTA				14				/**< Dota 2 */
++#define SOURCE_ENGINE_HL2DM				15				/**< Half-Life 2 Deathmatch */
++#define SOURCE_ENGINE_DODS				16				/**< Day of Defeat: Source */
++#define SOURCE_ENGINE_TF2				17				/**< Team Fortress 2 */
++#define SOURCE_ENGINE_NUCLEARDAWN		18				/**< Nuclear Dawn */
++#define SOURCE_ENGINE_SDK2013			19				/**< Source SDK 2013 */
++#define SOURCE_ENGINE_BLADE				20				/**< Blade Symphony */
++#define SOURCE_ENGINE_INSURGENCY		21				/**< Insurgency */
++#define SOURCE_ENGINE_CONTAGION			22				/**< Contagion */
++#define SOURCE_ENGINE_BMS				23				/**< Black Mesa Multiplayer */
++#define SOURCE_ENGINE_DOI				24				/**< Day of Infamy */
++#endif
++
+ #endif //_INCLUDE_METAMOD_WRAPPERS_H_
+Submodule sourcepawn contains modified content
+diff --git a/sourcepawn/vm/AMBuilder b/sourcepawn/vm/AMBuilder
+index a1fa411..8e04ad9 100644
+--- a/sourcepawn/vm/AMBuilder
++++ b/sourcepawn/vm/AMBuilder
+@@ -111,6 +111,9 @@ dll.sources += [
+   'dll_exports.cpp'
+ ]
+ 
++if builder.target.platform == 'linux':
++  dll.compiler.postlink += ['-lpthread', '-lrt']
++
+ libsourcepawn = builder.Add(dll)
+ 
+ # Build the debug shell.
+diff --git a/tools/buildbot/Versioning b/tools/buildbot/Versioning
+index 994f052a..047eed54 100644
+--- a/tools/buildbot/Versioning
++++ b/tools/buildbot/Versioning
+@@ -17,15 +17,20 @@ outputs = [
+   os.path.join(builder.buildFolder, 'includes', 'version_auto.inc'),
+ ]
+ 
+-with open(os.path.join(builder.sourcePath, '.git', 'HEAD')) as fp:
++git_dir = os.path.join(builder.sourcePath, '.git')
++if os.path.isfile(git_dir):
++  with open(git_dir, 'r') as hFile:
++      git_dir = os.path.realpath(os.path.join(git_dir, '..', hFile.readline().strip().replace('gitdir: ', '')))
++
++with open(os.path.join(git_dir, 'HEAD')) as fp:
+   head_contents = fp.read().strip()
+   if re.search('^[a-fA-F0-9]{40}$', head_contents):
+-    git_head_path = os.path.join(builder.sourcePath, '.git', 'HEAD')
++    git_head_path = os.path.join(git_dir, 'HEAD')
+   else:
+     git_state = head_contents.split(':')[1].strip()
+-    git_head_path = os.path.join(builder.sourcePath, '.git', git_state)
++    git_head_path = os.path.join(git_dir, git_state)
+     if not os.path.exists(git_head_path):
+-      git_head_path = os.path.join(builder.sourcePath, '.git', 'HEAD')
++      git_head_path = os.path.join(git_dir, 'HEAD')
+ 
+ sources = [
+   os.path.join(builder.sourcePath, 'product.version'),
+diff --git a/tools/checkout-deps.ps1 b/tools/checkout-deps.ps1
+index f7b4f537..f42b05ec 100644
+--- a/tools/checkout-deps.ps1
++++ b/tools/checkout-deps.ps1
+@@ -76,23 +76,26 @@ if (-not (Test-Path "sourcemod" -PathType Container))
+ 
+ Checkout-Repo -Name "mmsource-1.10" -Branch "1.10-dev" -Repo "https://github.com/alliedmodders/metamod-source.git"
+ 
+-if (-not (Test-Path "hl2sdk-proxy-repo" -PathType Container))
+-{
+-    & git clone --mirror https://github.com/alliedmodders/hl2sdk hl2sdk-proxy-repo 2>&1 | Write-Host
+-}
+-else
+-{
+-    Set-Location hl2sdk-proxy-repo
+-    & git fetch 2>&1 | Write-Host
+-    Set-Location ..
+-}
+-
+-$SDKS | % {
+-    Checkout-Repo -Name "hl2sdk-$_" -Branch $_ -Repo "hl2sdk-proxy-repo" "https://github.com/alliedmodders/hl2sdk.git"
+-}
++Checkout-Repo -Name "hl2sdk-episode1" -Branch "episode1" -Repo "https://github.com/alliedmodders/hl2sdk.git"
+ 
+ Checkout-Repo -Name "ambuild" -Branch "master" -Repo "https://github.com/alliedmodders/ambuild.git"
+ Set-Location ambuild
+ & python setup.py install
+ 
+ Set-Location ..
++
++
++
++$archive_ext = "zip"
++$mysqlfolder = "mysql-5.5"
++$mysqlver = "mysql-5.5.54-win32"
++$mysqlurl = "https://cdn.mysql.com/archives/mysql-5.5/$mysqlver.$archive_ext"
++
++if (-not (Test-Path -LiteralPath $mysqlfolder)) {
++    Write-Host "Download MySQL..."
++    & (New-Object System.Net.WebClient).DownloadFile($mysqlurl, "$mysqlfolder.$archive_ext")
++    & Write-Host "Extracting MySQL..."
++    & Expand-Archive "$mysqlfolder.$archive_ext" -DestinationPath .
++    & Rename-Item $mysqlver $mysqlfolder
++    & Remove-Item "$mysqlfolder.$archive_ext"
++}
+diff --git a/tools/checkout-deps.sh b/tools/checkout-deps.sh
+index d2b10332..1b5d630b 100755
+--- a/tools/checkout-deps.sh
++++ b/tools/checkout-deps.sh
+@@ -27,10 +27,12 @@ fi
+ getmysql ()
+ {
+   if [ ! -d $mysqlfolder ]; then
+-    if [ `command -v wget` ]; then
++    if [ `command -v aria2c` ]; then
++      aria2c -x 16 -s 16 $mysqlurl -o $mysqlfolder.$archive_ext
++    elif [ `command -v wget` ]; then
+       wget $mysqlurl -O $mysqlfolder.$archive_ext
+     elif [ `command -v curl` ]; then
+-      curl -o $mysqlfolder.$archive_ext $mysqlurl
++      curl -sSLo $mysqlfolder.$archive_ext $mysqlurl
+     else
+       echo "Failed to locate wget or curl. Install one of these programs to download MySQL."
+       exit 1
+@@ -66,7 +68,7 @@ elif [ $iswin -eq 0 ]; then
+   mysqlver=mysql-5.6.15-linux-glibc2.5-x86_64
+   mysqlurl=https://cdn.mysql.com/archives/mysql-5.6/$mysqlver.$archive_ext
+ fi
+-getmysql
++# getmysql
+ 
+ checkout ()
+ {
+@@ -104,19 +106,20 @@ if [ $ismac -eq 0 ]; then
+   fi
+ fi
+ 
++sdks=( episode1 )
++
+ # Check out a local copy as a proxy.
+-if [ ! -d "hl2sdk-proxy-repo" ]; then
+-  git clone --mirror https://github.com/alliedmodders/hl2sdk hl2sdk-proxy-repo
+-else
+-  cd hl2sdk-proxy-repo
+-  git fetch
+-  cd ..
+-fi
++# if [ ! -d "hl2sdk-proxy-repo" ]; then
++#   git clone --mirror https://github.com/alliedmodders/hl2sdk hl2sdk-proxy-repo
++# else
++#   cd hl2sdk-proxy-repo
++#   git fetch
++#   cd ..
++# fi
+ 
+ for sdk in "${sdks[@]}"
+ do
+-  repo=hl2sdk-proxy-repo
+-  origin="https://github.com/alliedmodders/hl2sdk"
++  repo="https://github.com/alliedmodders/hl2sdk"
+   name=hl2sdk-$sdk
+   branch=$sdk
+   checkout
